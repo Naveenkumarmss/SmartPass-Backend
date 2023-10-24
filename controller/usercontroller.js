@@ -1,5 +1,5 @@
-import UserSchema from "../../model/userSchema.js"
-import AadharSchema from "../../model/AadharSchema.js";
+import UserSchema from "../model/userSchema.js"
+import AadharSchema from "../model/AadharSchema.js";
 
 const getAllUser = async (req, res) => {
     const getUser = await UserSchema.find({});
@@ -13,23 +13,30 @@ const getAllUser = async (req, res) => {
   }
   
   const CreateNewUser = async (req, res) => {
+    const bodyaadharid = req.body.aadharid;
     try {
-      // Check if the Aadhar ID already exists in AadharSchema
-      const checkid = await AadharSchema.findOne({ aadarrid: req.body.aadharid });
-  
+      const checkid = await AadharSchema.findOne({ aadharid: bodyaadharid });
       if (checkid) {
-        // Aadhar ID not found, proceed to create a new user
-        const addUser = await UserSchema.create(req.body);
-        res.status(200).json({ success: true, message: "User Created" });
+        const checkUser = await UserSchema.findOne({
+          aadharid: bodyaadharid,
+        });
+        if (checkUser) {
+          res
+            .status(400)
+            .json({ success: false, message: "Aadhar ID already exists" });
+        } else {
+          const addUser = await UserSchema.create(req.body);
+          res.status(200).json({ success: true, message: "User Created" });
+        }
       } else {
-        // Aadhar ID already exists, send a response indicating that
-        res.status(400).json({ success: false, message: "Aadhar ID already exists" });
+        res.status(400).json({ success: false, message: "Aadhar ID not found" });
       }
     } catch (err) {
-      // Handle any errors that occur during the process
       res.status(500).json({ success: false, message: err.message });
     }
+    // res.send(req.body.aadharid)
   };
+  
   
 
   const deleteUser = async(req,res)=>{
@@ -57,7 +64,4 @@ const getAllUser = async (req, res) => {
     }
 
 
-    const testing = async(req,res)=>{
-        const testcreate = await AadharSchema.create(req.body)
-    }
-  export { getAllUser, CreateNewUser,deleteUser, updateUser ,getUserById,testing};
+  export { getAllUser, CreateNewUser,deleteUser, updateUser ,getUserById};

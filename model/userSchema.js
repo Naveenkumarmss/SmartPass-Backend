@@ -9,7 +9,7 @@ const smartpass = new mongoose.Schema(
     aadharid: {
         type:Number,
         required:true
-    },
+        },
     address: {
         type:String,
         required:true
