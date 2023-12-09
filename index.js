@@ -5,8 +5,8 @@ import mongoose from "mongoose";
 import cors from "cors";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
-import userRouter from "./routes/userroutes.js";
 import authRoute from "./routes/authroute.js";
+import { v2 as cloudinary } from "cloudinary";
 
 const app = Express();
 const PORT = 8080;
@@ -28,8 +28,13 @@ mongoose.connect(process.env.DB_URL, {
 const db = mongoose.connection;
 db.on("error", (errorMessage) => console.log(errorMessage));
 db.once("open", () => console.log("Connected successfully to the database"));
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+  secure: true,
+});
 
-app.use("/api/user", userRouter);
 app.use("/api/auth", authRoute);
 
 app.listen(PORT, () => {

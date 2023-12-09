@@ -1,47 +1,65 @@
-import userSchema from "../model/userSchema.js";
+import { randomUUID } from "crypto";
 import authSchema from "../model/authSchema.js";
+import { v2 as cloudinary } from "cloudinary";
 import AadharSchema from "../model/AadharSchema.js";
 import { badRequest } from "../error/index.js";
 import { StatusCodes } from "http-status-codes";
 import { comparePassword, jwtGenrator } from "../utils/index.js";
 
 const authSignup = async (req, res) => {
-    const bodyaadharid = req.body.aadharid;
-    try {
-      const checkid = await AadharSchema.findOne({ aadharid: bodyaadharid });
-      if (checkid) {
-        const checkUser = await userSchema.findOne({
-          aadharid: bodyaadharid,
-        });
-        if (checkUser) {
-          res
-            .status(400)
-            .json({ success: false, message: "Aadhar ID already exists" });
-        } else {
-  await userSchema.create({name: req.body.name, aadharid: req.body.aadharid, address: req.body.address,age: req.body.age});
-  await authSchema.create({aadharid: req.body.aadharid, password: req.body.password});
-  res.status(200).json({ success: true, message: "User Created" });
-}
-      } else {
-        res.status(400).json({ success: false, message: "Aadhar ID not found" });
-      }
-    } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
+  try {
+    const { name, aadharid, address, age, fingerprint, password } = req.body;
+    const { destination, filename } = req.file;
+    const filePath = destination + "/" + filename;
+    const { secure_url } = await cloudinary.uploader.upload(filePath, {
+      public_id: randomUUID(),
+      folder: "recipe",
+    });
+    console.log(secure_url);
+    const existingAadhar = await AadharSchema.findOne({ aadharid });
+
+    if (!existingAadhar) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Aadhar ID not found" });
     }
+
+    const existingUser = await authSchema.findOne({ aadharid });
+
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Aadhar ID already exists" });
+    }
+
+    await authSchema.create({
+      aadharid,
+      password,
+      name,
+      address,
+      age,
+      fingerprint,
+      photo: secure_url,
+    });
+    res.status(200).json({ success: true, message: "User Created" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 };
+
 const authlogin = async (req, res, next) => {
   try {
     if (!req.body.aadharid && !req.body.password)
-      throw new badRequest("Email and Password is required");
+      throw new badRequest("AadharId and Password is required");
     const User = await authSchema.findOne({ aadharid: req.body.aadharid });
     if (!User) throw new badRequest("User not found");
     const isMatch = await comparePassword(req.body.password, User.password);
     if (!isMatch) throw new badRequest("Password is not correct");
-    const token = jwtGenrator({ payload: { id: User._id, aadharid: User.aadharid } });
+    const token = jwtGenrator({ payload: { id: User._id } });
     res.cookie(
       "token",
       token,
-      { httpOnly: true },
+      { httpOnly: false, secure: true },
       { maxAge: 1000 * 60 * 60 * 24 }
     );
     res.status(StatusCodes.OK).json({ message: "User Found", token: token });
